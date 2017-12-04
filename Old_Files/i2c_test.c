@@ -35,35 +35,42 @@ All rights reserved.
  */
 
 #include <stdio.h>
-#include <linux/i2c.h>
-#include <linux/i2c-dev.h>
+#include "i2c-dev.h"
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <string.h>
 
+#define LSM9DS0_REGISTER_OUT_X_H_M              0x09
+#define LSM9DS0_REGISTER_OUT_Y_L_M              0x0A
+#define LSM9DS0_REGISTER_OUT_Y_H_M              0x0B
+#define LSM9DS0_REGISTER_OUT_Z_L_M              0x0C
+#define LSM9DS0_REGISTER_OUT_Z_H_M              0x0D
+#define LSM9DS0_REGISTER_WHO_AM_I_XM            0x0F
+#define LSM9DS0_REGISTER_INT_CTRL_REG_M         0x12
+#define LSM9DS0_REGISTER_INT_SRC_REG_M          0x13
+#define LSM9DS0_REGISTER_CTRL_REG1_XM           0x20
+#define LSM9DS0_REGISTER_CTRL_REG2_XM           0x21
+#define LSM9DS0_REGISTER_CTRL_REG5_XM           0x24
+#define LSM9DS0_REGISTER_CTRL_REG6_XM           0x25
+#define LSM9DS0_REGISTER_CTRL_REG7_XM           0x26
+#define LSM9DS0_REGISTER_OUT_X_L_A              0x28
+#define LSM9DS0_REGISTER_OUT_X_H_A              0x29
+#define LSM9DS0_REGISTER_OUT_Y_L_A              0x2A
+#define LSM9DS0_REGISTER_OUT_Y_H_A              0x2B
+#define LSM9DS0_REGISTER_OUT_Z_L_A              0x2C
+#define LSM9DS0_REGISTER_OUT_Z_H_A              0x2D
 
-//this is from proc_gpio.c
-#include <linux/init.h>
-//#include <asm/hardware.h>
-#include <asm/uaccess.h>
-//this is from proc_gpio.c
+//Angular rate SAD+read/write patterns
+#define LSM9DS0_ADDRESS_GYRO_READ               0xd5 //(11010101) - Read
+#define LSM9DS0_ADDRESS_GYRO_WRITE              0xd4 //(11010100) - Write
 
+//Linear acceleration and magnetic sensor SAD+read/write patterns
+#define LSM9DS0_ADDRESS_ACCELMAG_READ           0x3d //(00111101) - Read
+#define LSM9DS0_ADDRESS_ACCELMAG_WRITE          0x3c //(00111100) - Write
 
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm-arm/arch/hardware.h>
-#include <linux/slab.h> /* kmalloc() */
-#include <linux/kernel.h> /* printk() */
-#include <linux/module.h>
-#include <linux/fs.h> /* everything... */
-#include <asm/uaccess.h> /* copy_from/to_user */
-
-
-
-#define I2C_FILE_NAME "/dev/i2c-1"
+#define I2C_FILE_NAME "/dev/i2c-0"
 #define USAGE_MESSAGE \
     "Usage:\n" \
     "  %s r [addr] [register]   " \
@@ -148,19 +155,22 @@ static int get_i2c_register(int file,
 
 int main(int argc, char **argv) {
     int i2c_file;
+    short val;
+    int funcs;
 
     // Open a connection to the I2C userspace control file.
     if ((i2c_file = open(I2C_FILE_NAME, O_RDWR)) < 0) {
         perror("Unable to open i2c control file");
         exit(1);
     }
-
+   
     if(argc > 3 && !strcmp(argv[1], "r")) {
         int addr = strtol(argv[2], NULL, 0);
         int reg = strtol(argv[3], NULL, 0);
         unsigned char value;
+
         if(get_i2c_register(i2c_file, addr, reg, &value)) {
-            printf("Unable to get register!\n");
+            printf("Unable to get register %x at address %x!\n", reg, addr);
         }
         else {
             printf("Register %d: %d (%x)\n", reg, (int)value, (int)value);

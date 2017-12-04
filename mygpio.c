@@ -76,6 +76,7 @@
 #define LSM9DS0_REGISTER_OUT_X_H_M              0x09
 #define LSM9DS0_REGISTER_OUT_Y_L_M              0x0A
 #define LSM9DS0_REGISTER_OUT_Y_H_M              0x0B
+
 #define LSM9DS0_REGISTER_OUT_Z_L_M              0x0C
 #define LSM9DS0_REGISTER_OUT_Z_H_M              0x0D
 #define LSM9DS0_REGISTER_WHO_AM_I_XM            0x0F
@@ -93,6 +94,7 @@
 #define LSM9DS0_REGISTER_OUT_Z_L_A              0x2C
 #define LSM9DS0_REGISTER_OUT_Z_H_A              0x2D
 
+
 //Angular rate SAD+read/write patterns
 #define LSM9DS0_ADDRESS_GYRO_READ               0xd5 //(11010101) - Read
 #define LSM9DS0_ADDRESS_GYRO_WRITE              0xd4 //(11010100) - Write
@@ -101,6 +103,8 @@
 #define LSM9DS0_ADDRESS_ACCELMAG_READ           0x3d //(00111101) - Read
 #define LSM9DS0_ADDRESS_ACCELMAG_WRITE          0x3c //(00111100) - Write
 
+#define GPIO101 101
+#define GPIO17 17
 
 static int mygpio_major = 61;
 static unsigned capacity = 128;
@@ -119,21 +123,18 @@ struct file_operations mygpio_fops = {
 
 irqreturn_t i2c_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
-	//Read ISR: IDBR transmit empty (1), Unit Busy (1), R/nW bit (0).
-	if(ISR & ISR_ITE & ISR_UB & (~ISR & 1))
+	printk("handler called\n");
+	if(pxa_gpio_get_value(GPIO101))
 	{
-		//Write 0b1 to the ISR[ITE] bit to clear interrupt.
-		ISR &= ~ISR_ITE;
-		printk("progress!");	
+		printk("1\n");	
 	}
 	else
 	{
-		printk("nope! no good!\n");
+		printk("0\n");
 	}
 	
         return IRQ_HANDLED;
 }
-
 
 static int my_init_module(void)
 {
@@ -157,39 +158,19 @@ static int my_init_module(void)
 	memset(mygpio_buffer, 0, capacity);
 	mygpio_len = 0;	
 	*/
-	printk("test\n");
 
-	pxa_gpio_mode(GPIO117_I2CSCL_MD);	
-	pxa_gpio_mode(GPIO118_I2CSDA_MD);	
-	pxa_set_cken(CKEN14_I2C, 1);
-
-	//Set the slave address in the ISAR.
-	ISAR = LSM9DS0_ADDRESS_ACCELMAG_WRITE >> 1; 
-	
-	//Set the ICR[IUE] and ICR[SCLE] bits to enable the I2C interface and SCL.
-	ICR |= ICR_IUE;
-	ICR |= ICR_SCLE;
-
-	//Load target slave address and R/nW bit in the IDBR. R/nW must be 0 for a write.
-	IDBR = LSM9DS0_ADDRESS_ACCELMAG_WRITE;
-
-	//Initiate the write. Set ICR[START], clear ICR[STOP], clear ICR[ALDIE], set ICR[TB].
-	ICR |= ICR_START;
-	ICR &= ~ICR_STOP;
-	ICR &= ~ICR_ALDIE;
-	ICR |= ICR_TB;
-
-	int irq = IRQ_I2C;
-	printk( "irq num: %d", IRQ_I2C);
+	int irq = IRQ_GPIO(GPIO17_PWM1);
 	
 	//When an IDBR transmit-empty interrupt occurs: Read ISR: IDBR transmit empty (1), Unit Busy (1), R/nW bit (0).
-	if (request_irq(irq, &i2c_handler, SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+	if (request_irq(irq, &i2c_handler, SA_INTERRUPT | SA_TRIGGER_RISING,
                                 "mygpio", NULL) != 0 ) {
                 printk ( "irq not acquired \n" );
                 return -1;
         }
-
 	
+	pxa_gpio_mode(GPIO101 | GPIO_IN); //data
+        pxa_gpio_mode(GPIO17_PWM1 | GPIO_IN); //clock
+
 	return 0;
 }
 
@@ -203,7 +184,7 @@ static void my_cleanup_module(void)
 		kfree(mygpio_buffer);
 	}
 
-	free_irq(IRQ_I2C, NULL);
+	free_irq(IRQ_GPIO(GPIO17), NULL);
 }
 
 static int mygpio_open(struct inode *inode, struct file *filp)
