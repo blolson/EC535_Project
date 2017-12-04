@@ -64,12 +64,12 @@ All rights reserved.
 #define LSM9DS0_REGISTER_OUT_Z_H_A              0x2D
 
 //Angular rate SAD+read/write patterns
-#define LSM9DS0_ADDRESS_GYRO_READ               0xd5 //(11010101) - Read
-#define LSM9DS0_ADDRESS_GYRO_WRITE              0xd4 //(11010100) - Write
+#define LSM9DS0_ADDRESS_GYRO_READ               0xd7 //(11010111) - Read
+#define LSM9DS0_ADDRESS_GYRO_WRITE              0xd6 //(11010110) - Write
 
 //Linear acceleration and magnetic sensor SAD+read/write patterns
-#define LSM9DS0_ADDRESS_ACCELMAG_READ           0x3d //(00111101) - Read
-#define LSM9DS0_ADDRESS_ACCELMAG_WRITE          0x3c //(00111100) - Write
+#define LSM9DS0_ADDRESS_ACCELMAG_READ           0x3b //(00111011) - Read
+#define LSM9DS0_ADDRESS_ACCELMAG_WRITE          0x3a //(00111010) - Write
 
 #define I2C_FILE_NAME "/dev/i2c-0"
 #define USAGE_MESSAGE \
@@ -187,6 +187,28 @@ int main(int argc, char **argv) {
         else {
             printf("Set register %x: %d (%x)\n", reg, value, value);
         }
+    }
+    else if(argc > 2 && !strcmp(argv[1], "accel")) {
+	//Blade: I will later clear up what 103 does - it sets rate at 100Hz
+  	set_i2c_register(i2c_file, LSM9DS0_ADDRESS_ACCELMAG_WRITE >> 1, 
+		LSM9DS0_REGISTER_CTRL_REG1_XM, 103);
+	
+	//https://github.com/adafruit/Adafruit_LSM9DS0_Library/blob/master/Adafruit_LSM9DS0.cpp
+	while(1)	
+	{
+	        unsigned char accel_X_L,accel_X_H,accel_Y_L,accel_Y_H,accel_Z_L,accel_Z_H;
+	        int accel_X,accel_Y,accel_Z;
+		get_i2c_register(i2c_file, LSM9DS0_ADDRESS_ACCELMAG_READ >> 1, LSM9DS0_REGISTER_OUT_X_L_A, &accel_X_L);
+		get_i2c_register(i2c_file, LSM9DS0_ADDRESS_ACCELMAG_READ >> 1, LSM9DS0_REGISTER_OUT_X_H_A, &accel_X_H);
+		get_i2c_register(i2c_file, LSM9DS0_ADDRESS_ACCELMAG_READ >> 1, LSM9DS0_REGISTER_OUT_Y_L_A, &accel_Y_L);
+		get_i2c_register(i2c_file, LSM9DS0_ADDRESS_ACCELMAG_READ >> 1, LSM9DS0_REGISTER_OUT_Y_H_A, &accel_Y_H);
+		get_i2c_register(i2c_file, LSM9DS0_ADDRESS_ACCELMAG_READ >> 1, LSM9DS0_REGISTER_OUT_Z_L_A, &accel_Z_L);
+		get_i2c_register(i2c_file, LSM9DS0_ADDRESS_ACCELMAG_READ >> 1, LSM9DS0_REGISTER_OUT_Z_H_A, &accel_Z_H);
+		accel_X = accel_X_L + (accel_X_H << 8);
+		accel_Y = accel_Y_L + (accel_Y_H << 8);
+		accel_Z = accel_Z_L + (accel_Z_H << 8);
+		printf("AccelX:\t%d\tAccelY:\t%d\tAccelZ:\t%d\n", accel_X, accel_Y, accel_Z);
+	}  
     }
     else {
         fprintf(stderr, USAGE_MESSAGE, argv[0], argv[0]);
