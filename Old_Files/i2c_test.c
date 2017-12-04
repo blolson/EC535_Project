@@ -35,7 +35,8 @@ All rights reserved.
  */
 
 #include <stdio.h>
-#include "i2c-dev.h"
+#include <linux/i2c.h>
+#include <linux/i2c-dev.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
