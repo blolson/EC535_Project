@@ -42,6 +42,29 @@ All rights reserved.
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <string.h>
+#include "MahonyAHRS.h"
+#include <sys/time.h>
+
+#define SENSORS_GRAVITY_STANDARD (9.80665F) /**< Earth's gravity in m/s^2 */
+
+// Linear Acceleration: mg per LSB
+#define LSM9DS0_ACCEL_MG_LSB_2G (0.061F)
+#define LSM9DS0_ACCEL_MG_LSB_4G (0.122F)
+#define LSM9DS0_ACCEL_MG_LSB_6G (0.183F)
+#define LSM9DS0_ACCEL_MG_LSB_8G (0.244F)
+#define LSM9DS0_ACCEL_MG_LSB_16G (0.732F) // Is this right? Was expecting 0.488F
+
+// Magnetic Field Strength: gauss range
+#define LSM9DS0_MAG_MGAUSS_2GAUSS      (0.08F)
+#define LSM9DS0_MAG_MGAUSS_4GAUSS      (0.16F)
+#define LSM9DS0_MAG_MGAUSS_8GAUSS      (0.32F)
+#define LSM9DS0_MAG_MGAUSS_12GAUSS     (0.48F)
+
+// Angular Rate: dps per LSB
+#define LSM9DS0_GYRO_DPS_DIGIT_245DPS      (0.00875F)
+#define LSM9DS0_GYRO_DPS_DIGIT_500DPS      (0.01750F)
+#define LSM9DS0_GYRO_DPS_DIGIT_2000DPS (0.07000F)
+
 
 //Gyrometer registers
 #define LSM9DS0_REGISTER_WHO_AM_I_G             0x0F
@@ -82,18 +105,18 @@ All rights reserved.
 
 /*---------=IMU #1=-----------*/
 //Angular rate SAD+read/write patterns
-#define LSM9DS0_ADDRESS_1_GYRO_READ               0xd7 //(11010111) - Read
+#define LSM9DS0_ADDRESS_1_GYRO_READ               0xd7 //(11010111) - 107 - Read
 #define LSM9DS0_ADDRESS_1_GYRO_WRITE              0xd6 //(11010110) - Write
 
 //Linear acceleration and magnetic sensor SAD+read/write patterns
-#define LSM9DS0_ADDRESS_1_ACCELMAG_READ           0x3b //(00111011) - Read
+#define LSM9DS0_ADDRESS_1_ACCELMAG_READ           0x3b //(00111011) - 29 - Read
 #define LSM9DS0_ADDRESS_1_ACCELMAG_WRITE          0x3a //(00111010) - Write
 
 
 /*---------=IMU #2=-----------*/
 //Angular rate SAD+read/write patterns
-#define LSM9DS0_ADDRESS_2_GYRO_READ               0xd5 //(11010111) - Read
-#define LSM9DS0_ADDRESS_2_GYRO_WRITE              0xd4 //(11010110) - Write
+#define LSM9DS0_ADDRESS_2_GYRO_READ               0xd5 //(11010101) - Read
+#define LSM9DS0_ADDRESS_2_GYRO_WRITE              0xd4 //(11010100) - Write
 
 //Linear acceleration and magnetic sensor SAD+read/write patterns
 #define LSM9DS0_ADDRESS_2_ACCELMAG_READ           0x3d //(00111011) - Read
@@ -115,6 +138,16 @@ void setupAccelMag(int, int);
 void printAccel(int, int);
 void printGyro(int, int);
 void printMag(int, int);
+int getAccelX(int, int);
+int getAccelY(int, int);
+int getAccelZ(int, int);
+int getGyroX(int, int);
+int getGyroY(int, int);
+int getGyroZ(int, int);
+int getMagX(int, int);
+int getMagY(int, int);
+int getMagZ(int, int);
+long long current_timestamp();
 
 static int set_i2c_register(int file,
                             unsigned char addr,
@@ -255,6 +288,59 @@ int main(int argc, char **argv) {
 	        printMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ);		
 	}  	
     }
+    else if(argc > 1 && !strcmp(argv[1], "all")) {
+        setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
+        setupGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_WRITE);
+
+        while(1)
+        {
+                printAccel(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ);
+                printGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_READ);
+                printMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ);
+        }
+    }
+    else if(argc > 1 && !strcmp(argv[1], "euler")) {
+        setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
+        setupGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_WRITE);
+	
+	float aX,aY,aZ,gX,gY,gZ,mX,mY,mZ;
+	float roll, pitch, yaw;	
+
+        while(1)
+        {
+                aX = getAccelX(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ) * LSM9DS0_ACCEL_MG_LSB_2G;
+		aX /= 1000;
+		aX *= SENSORS_GRAVITY_STANDARD;
+                aY = getAccelY(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ) * LSM9DS0_ACCEL_MG_LSB_2G;
+		aY /= 1000;
+		aY *= SENSORS_GRAVITY_STANDARD;
+                aZ = getAccelZ(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ) * LSM9DS0_ACCEL_MG_LSB_2G;
+		aZ /= 1000;
+		aZ *= SENSORS_GRAVITY_STANDARD;
+                gX = getGyroX(i2c_file, LSM9DS0_ADDRESS_1_GYRO_READ) * LSM9DS0_GYRO_DPS_DIGIT_245DPS;
+                gY = getGyroY(i2c_file, LSM9DS0_ADDRESS_1_GYRO_READ) * LSM9DS0_GYRO_DPS_DIGIT_245DPS;
+                gZ = getGyroZ(i2c_file, LSM9DS0_ADDRESS_1_GYRO_READ) * LSM9DS0_GYRO_DPS_DIGIT_245DPS;
+		mX = getGyroX(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ) * LSM9DS0_MAG_MGAUSS_4GAUSS;
+                mX /= 1000;
+		mY = getGyroY(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ) * LSM9DS0_MAG_MGAUSS_4GAUSS;
+		mY /= 1000;
+                mZ = getGyroZ(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ) * LSM9DS0_MAG_MGAUSS_4GAUSS;
+		mZ /= 1000;
+
+		//MahonyAHRSupdateIMU(gX, gY, gZ, aX, aY, aZ);
+		MahonyAHRSupdate(gX, gY, gZ, aX, aY, aZ, mX, mY, mZ);
+
+		//https://github.com/adafruit/Adafruit_AHRS/blob/master/Adafruit_Simple_AHRS.cpp
+		//https://learn.adafruit.com/ahrs-for-adafruits-9-dof-10-dof-breakout?view=all#software
+		//https://learn.adafruit.com/ahrs-for-adafruits-9-dof-10-dof-breakout/sensor-fusion-algorithms		
+
+		roll = getRoll();
+		pitch = getPitch();
+		yaw = getYaw();
+		//current_timestamp();
+		printf("Roll:\t%.2f\tPitch\t%.2f\tYaw:\t%.2f\n", roll, pitch, yaw);
+        }
+    }
     else {
         fprintf(stderr, USAGE_MESSAGE, argv[0], argv[0]);
     }
@@ -264,6 +350,14 @@ int main(int argc, char **argv) {
 
 
     return 0;
+}
+
+long long current_timestamp() {
+    struct timeval te; 
+    gettimeofday(&te, NULL); // get current time
+    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds
+    printf("milliseconds: %lld\n", milliseconds);
+    return milliseconds;
 }
 
 
@@ -295,6 +389,73 @@ void setupAccelMag(int i2c_file, int address)
 	//enable mag continuous
 	set_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_CTRL_REG7_XM, 0);
 }
+
+int getAccelX(int i2c_file, int address)
+{
+        unsigned char _L,_H;
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_L_A, &_L);
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_H_A, &_H);
+        return _L + (_H << 8);
+}
+int getAccelY(int i2c_file, int address)
+{
+        unsigned char _L,_H;
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_L_A, &_L);
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_H_A, &_H);
+        return _L + (_H << 8);
+}
+int getAccelZ(int i2c_file, int address)
+{
+        unsigned char _L,_H;
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_L_A, &_L);
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_H_A, &_H);
+        return _L + (_H << 8);
+}
+
+int getGyroX(int i2c_file, int address)
+{
+        unsigned char _L,_H;
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_L_G, &_L);
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_H_G, &_H);
+        return _L + (_H << 8);
+}
+int getGyroY(int i2c_file, int address)
+{
+        unsigned char _L,_H;
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_L_G, &_L);
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_H_G, &_H);
+        return _L + (_H << 8);
+}
+int getGyroZ(int i2c_file, int address)
+{
+        unsigned char _L,_H;
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_L_G, &_L);
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_H_G, &_H);
+        return _L + (_H << 8);
+}
+
+int getMagX(int i2c_file, int address)
+{
+        unsigned char _L,_H;
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_L_M, &_L);
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_H_M, &_H);
+        return _L + (_H << 8);
+}
+int getMagY(int i2c_file, int address)
+{
+        unsigned char _L,_H;
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_L_M, &_L);
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_H_M, &_H);
+        return _L + (_H << 8);
+}
+int getMagZ(int i2c_file, int address)
+{
+        unsigned char _L,_H;
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_L_M, &_L);
+        get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_H_M, &_H);
+        return _L + (_H << 8);
+}
+
 
 void printAccel(int i2c_file, int address)
 {
