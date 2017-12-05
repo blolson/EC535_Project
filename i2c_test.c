@@ -241,6 +241,17 @@ int main(int argc, char **argv) {
 	setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
 	while(1)	
 	{
+	        printMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ);
+	}  	
+    }
+    else if(argc > 1 && !strcmp(argv[1], "all")) {
+	setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
+	setupGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_WRITE);
+
+	while(1)	
+	{
+		printAccel(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ);
+		printGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_READ);
 	        printMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ);		
 	}  	
     }
