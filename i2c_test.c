@@ -43,27 +43,65 @@ All rights reserved.
 #include <sys/ioctl.h>
 #include <string.h>
 
+//Gyrometer registers
+#define LSM9DS0_REGISTER_WHO_AM_I_G             0x0F
+#define LSM9DS0_REGISTER_CTRL_REG1_G            0x20
+#define LSM9DS0_REGISTER_CTRL_REG3_G            0x22
+#define LSM9DS0_REGISTER_CTRL_REG4_G            0x23
+#define LSM9DS0_REGISTER_OUT_X_L_G              0x28
+#define LSM9DS0_REGISTER_OUT_X_H_G              0x29
+#define LSM9DS0_REGISTER_OUT_Y_L_G              0x2A
+#define LSM9DS0_REGISTER_OUT_Y_H_G              0x2B
+#define LSM9DS0_REGISTER_OUT_Z_L_G              0x2C
+#define LSM9DS0_REGISTER_OUT_Z_H_G              0x2D
 
-//this is from proc_gpio.c
-#include <linux/init.h>
-//#include <asm/hardware.h>
-#include <asm/uaccess.h>
-//this is from proc_gpio.c
+//Accelerometer and Magnetometer registers
+#define LSM9DS0_REGISTER_TEMP_OUT_L_XM          0x05
+#define LSM9DS0_REGISTER_TEMP_OUT_H_XM          0x06
+#define LSM9DS0_REGISTER_STATUS_REG_M           0x07
+#define LSM9DS0_REGISTER_OUT_X_L_M              0x08
+#define LSM9DS0_REGISTER_OUT_X_H_M              0x09
+#define LSM9DS0_REGISTER_OUT_Y_L_M              0x0A
+#define LSM9DS0_REGISTER_OUT_Y_H_M              0x0B
+#define LSM9DS0_REGISTER_OUT_Z_L_M              0x0C
+#define LSM9DS0_REGISTER_OUT_Z_H_M              0x0D
+#define LSM9DS0_REGISTER_WHO_AM_I_XM            0x0F
+#define LSM9DS0_REGISTER_INT_CTRL_REG_M         0x12
+#define LSM9DS0_REGISTER_INT_SRC_REG_M          0x13
+#define LSM9DS0_REGISTER_CTRL_REG1_XM           0x20
+#define LSM9DS0_REGISTER_CTRL_REG2_XM           0x21
+#define LSM9DS0_REGISTER_CTRL_REG5_XM           0x24
+#define LSM9DS0_REGISTER_CTRL_REG6_XM           0x25
+#define LSM9DS0_REGISTER_CTRL_REG7_XM           0x26
+#define LSM9DS0_REGISTER_OUT_X_L_A              0x28
+#define LSM9DS0_REGISTER_OUT_X_H_A              0x29
+#define LSM9DS0_REGISTER_OUT_Y_L_A              0x2A
+#define LSM9DS0_REGISTER_OUT_Y_H_A              0x2B
+#define LSM9DS0_REGISTER_OUT_Z_L_A              0x2C
+#define LSM9DS0_REGISTER_OUT_Z_H_A              0x2D
+
+/*---------=IMU #1=-----------*/
+//Angular rate SAD+read/write patterns
+#define LSM9DS0_ADDRESS_1_GYRO_READ               0xd7 //(11010111) - Read
+#define LSM9DS0_ADDRESS_1_GYRO_WRITE              0xd6 //(11010110) - Write
+
+//Linear acceleration and magnetic sensor SAD+read/write patterns
+#define LSM9DS0_ADDRESS_1_ACCELMAG_READ           0x3b //(00111011) - Read
+#define LSM9DS0_ADDRESS_1_ACCELMAG_WRITE          0x3a //(00111010) - Write
 
 
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm-arm/arch/hardware.h>
-#include <linux/slab.h> /* kmalloc() */
-#include <linux/kernel.h> /* printk() */
-#include <linux/module.h>
-#include <linux/fs.h> /* everything... */
-#include <asm/uaccess.h> /* copy_from/to_user */
+/*---------=IMU #2=-----------*/
+//Angular rate SAD+read/write patterns
+#define LSM9DS0_ADDRESS_2_GYRO_READ               0xd5 //(11010111) - Read
+#define LSM9DS0_ADDRESS_2_GYRO_WRITE              0xd4 //(11010110) - Write
+
+//Linear acceleration and magnetic sensor SAD+read/write patterns
+#define LSM9DS0_ADDRESS_2_ACCELMAG_READ           0x3d //(00111011) - Read
+#define LSM9DS0_ADDRESS_2_ACCELMAG_WRITE          0x3c //(00111010) - Write
 
 
 
-#define I2C_FILE_NAME "/dev/i2c-1"
+#define I2C_FILE_NAME "/dev/i2c-0"
 #define USAGE_MESSAGE \
     "Usage:\n" \
     "  %s r [addr] [register]   " \
@@ -71,6 +109,12 @@ All rights reserved.
     "  %s w [addr] [register] [value]   " \
         "to write a value [value] to register [register]\n" \
     ""
+
+void setupGyro(int, int);
+void setupAccelMag(int, int);
+void printAccel(int, int);
+void printGyro(int, int);
+void printMag(int, int);
 
 static int set_i2c_register(int file,
                             unsigned char addr,
@@ -154,13 +198,14 @@ int main(int argc, char **argv) {
         perror("Unable to open i2c control file");
         exit(1);
     }
-
+   
     if(argc > 3 && !strcmp(argv[1], "r")) {
         int addr = strtol(argv[2], NULL, 0);
         int reg = strtol(argv[3], NULL, 0);
         unsigned char value;
+
         if(get_i2c_register(i2c_file, addr, reg, &value)) {
-            printf("Unable to get register!\n");
+            printf("Unable to get register %x at address %x!\n", reg, addr);
         }
         else {
             printf("Register %d: %d (%x)\n", reg, (int)value, (int)value);
@@ -177,6 +222,28 @@ int main(int argc, char **argv) {
             printf("Set register %x: %d (%x)\n", reg, value, value);
         }
     }
+    else if(argc > 1 && !strcmp(argv[1], "accel")) {
+	setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
+	while(1)	
+	{
+	        //printAccel(i2c_file, LSM9DS0_ADDRESS_2_ACCELMAG_READ);
+	        printAccel(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ);
+	}  	
+    }
+    else if(argc > 1 && !strcmp(argv[1], "gyro")) {
+	setupGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_WRITE);
+	while(1)	
+	{
+	        printGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_READ);
+	}  	
+    }
+    else if(argc > 1 && !strcmp(argv[1], "mag")) {
+	setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
+	while(1)	
+	{
+	        printMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ);		
+	}  	
+    }
     else {
         fprintf(stderr, USAGE_MESSAGE, argv[0], argv[0]);
     }
@@ -186,4 +253,82 @@ int main(int argc, char **argv) {
 
 
     return 0;
+}
+
+
+  /* setup commands found in the arduino .cpp library for LSM9DS0
+	found here: https://github.com/adafruit/Adafruit_LSM9DS0_Library/blob/master/Adafruit_LSM9DS0.cpp
+  write8(XMTYPE, LSM9DS0_REGISTER_CTRL_REG5_XM, 0b11110000);
+  // enable mag continuous
+  write8(XMTYPE, LSM9DS0_REGISTER_CTRL_REG7_XM, 0b00000000);
+  // enable gyro continuous
+  write8(GYROTYPE, LSM9DS0_REGISTER_CTRL_REG1_G, 0x0F); // on XYZ
+  // enable the temperature sensor (output rate same as the mag sensor)
+  uint8_t tempReg = read8(XMTYPE, LSM9DS0_REGISTER_CTRL_REG5_XM);
+  write8(XMTYPE, LSM9DS0_REGISTER_CTRL_REG5_XM, tempReg | (1<<7));
+  */
+
+
+void setupGyro(int i2c_file, int address)
+{
+	//enable gyro continuous update
+	set_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_CTRL_REG1_G, 15); //0x0F
+}
+
+void setupAccelMag(int i2c_file, int address)
+{
+
+	//enable accel to update @ 100Hz
+	set_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_CTRL_REG1_XM, 103); //0x67
+
+	//enable mag continuous
+	set_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_CTRL_REG7_XM, 0);
+}
+
+void printAccel(int i2c_file, int address)
+{
+	unsigned char accel_X_L,accel_X_H,accel_Y_L,accel_Y_H,accel_Z_L,accel_Z_H;
+	int accel_X,accel_Y,accel_Z;
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_L_A, &accel_X_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_H_A, &accel_X_H);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_L_A, &accel_Y_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_H_A, &accel_Y_H);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_L_A, &accel_Z_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_H_A, &accel_Z_H);
+	accel_X = accel_X_L + (accel_X_H << 8);
+	accel_Y = accel_Y_L + (accel_Y_H << 8);
+	accel_Z = accel_Z_L + (accel_Z_H << 8);
+	printf("AccelX:\t%d\tAccelY:\t%d\tAccelZ:\t%d\n", accel_X, accel_Y, accel_Z);
+}
+
+void printGyro(int i2c_file, int address)
+{
+	unsigned char gyro_X_L,gyro_X_H,gyro_Y_L,gyro_Y_H,gyro_Z_L,gyro_Z_H;
+	int gyro_X,gyro_Y,gyro_Z;
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_L_G, &gyro_X_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_H_G, &gyro_X_H);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_L_G, &gyro_Y_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_H_G, &gyro_Y_H);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_L_G, &gyro_Z_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_H_G, &gyro_Z_H);
+	gyro_X = gyro_X_L + (gyro_X_H << 8);
+	gyro_Y = gyro_Y_L + (gyro_Y_H << 8);
+	gyro_Z = gyro_Z_L + (gyro_Z_H << 8);
+	printf("GyroX:\t%d\tGyroY:\t%d\tGyroZ:\t%d\n", gyro_X, gyro_Y, gyro_Z);
+}
+
+void printMag(int i2c_file, int address)
+{
+	unsigned char gyro_X_L,gyro_X_H,gyro_Y_L,gyro_Y_H,gyro_Z_L,gyro_Z_H;
+	int gyro_X,gyro_Y,gyro_Z;
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_L_M, &gyro_X_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_H_M, &gyro_X_H);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_L_M, &gyro_Y_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_H_M, &gyro_Y_H);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_L_M, &gyro_Z_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_H_M, &gyro_Z_H);
+	gyro_X = gyro_X_L + (gyro_X_H << 8);
+	gyro_Y = gyro_Y_L + (gyro_Y_H << 8);
+	gyro_Z = gyro_Z_L + (gyro_Z_H << 8);
+	printf("MagX:\t%d\tMagY:\t%d\tMagZ:\t%d\n", gyro_X, gyro_Y, gyro_Z);
 }
