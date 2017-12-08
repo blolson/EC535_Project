@@ -1,19 +1,13 @@
-project: i2c_test punchomatic
+CC = $(EC535)/gumstix/oe/cross/bin/arm-linux-gcc
+CFLAGS = -Wall -std=c99
+objects = punchomatic.o i2c.o sensors.o ring_buffer.o ring_buffer_test.o
 
-i2c_test: i2c_test.c
-	$(EC535)/gumstix/oe/cross/bin/arm-linux-gcc i2c_test.c MahonyAHRS.h MahonyAHRS.c -o i2c_test -std=c99 -Wall -lm
-
-punchomatic: punchomatic.o i2c.o sensors.o
-	$(EC535)/gumstix/oe/cross/bin/arm-linux-gcc -o punchomatic -Wall punchomatic.o i2c.o sensors.o
-
-punchomatic.o: punchomatic.c
-	$(EC535)/gumstix/oe/cross/bin/arm-linux-gcc -c punchomatic.c -std=c99 -Wall
-
-sensors.o: sensors.c sensors.h
-	$(EC535)/gumstix/oe/cross/bin/arm-linux-gcc -c sensors.c -std=c99 -Wall
-
-i2c.o: i2c.c i2c.h
-	$(EC535)/gumstix/oe/cross/bin/arm-linux-gcc -c i2c.c -std=c99 -Wall
+all: ring_test i2c_test
+i2c_test : CFLAGS = -Wall -std=c99 -lm
+i2c_test : i2c_test.c MahonyAHRS.h MahonyAHRS.c
+ring_test : CFLAG = -Wall -std=c99 -o ring_test
+ring_test : ring_buffer.c ring_buffer.h ring_buffer_test.c sensors.c sensors.h
+	gcc ring_buffer_test.c ring_buffer.c ring_buffer.h sensors.c sensors.h i2c.h i2c.c -Wall -std=c99 -o ring_test
 
 clean:
-	rm i2c_test punchomatic punchomatic.o sensors.o i2c.o
+	rm i2c_test ring_test

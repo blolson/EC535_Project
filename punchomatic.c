@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include "i2c.h"
 #include "sensors.h"
 
@@ -10,4 +12,6 @@ int main()
     coords accel = getAccel(i2c_file);
     print(accel);
   }
+
+  
 }
