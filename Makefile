@@ -12,7 +12,7 @@ CFLAGS = -Wall -std=c99
 objects = punchomatic.o i2c.o sensors.o ring_buffer.o ring_buffer_test.o
 
 all: ring_test i2c_test punchomatic modules
-i2c_test : CFLAGS = -Wall -std=c99 -lm
+i2c_test : CFLAGS = -Wall -lm
 i2c_test : i2c_test.c MahonyAHRS.h MahonyAHRS.c
 punchomatic : ring_buffer.c ring_buffer.h sensors.c sensors.h punchomatic.c i2c.c i2c.h
 ring_test : CC = gcc
