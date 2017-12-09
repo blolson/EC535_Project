@@ -46,7 +46,7 @@ All rights reserved.
 #include <signal.h>
 #include <ctype.h>
 #include <sys/time.h>
-
+#include <math.h>
 
 //=============BLADE: THIS IS FOR THE PRESSURE SENSOR ADC==================
 /*=========================================================================
@@ -235,6 +235,7 @@ void printADC(int, int);
 void printAccel(int, int);
 void printGyro(int, int);
 void printMag(int, int);
+void getAccelMag(int, int);
 short getAccelX(int, int);
 short getAccelY(int, int);
 short getAccelZ(int, int);
@@ -464,6 +465,13 @@ int main(int argc, char **argv) {
 	        printAccel(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ);
 	}  	
     }
+    else if(argc > 1 && !strcmp(argv[1], "accel_mag")) {
+	setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
+	while(1)	
+	{
+	        getAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_READ);
+	}  	
+    }
     else if(argc > 1 && !strcmp(argv[1], "gyro")) {
 	setupGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_WRITE);
 	while(1)	
@@ -532,8 +540,8 @@ int main(int argc, char **argv) {
 	float roll, pitch, yaw;	
 	float bias[3];
 	
-	printf("--CALIBRATION--\nWave device in a figure 8 for ~5-10 seconds\n");
-	calibrateMag(bias);
+	//printf("--CALIBRATION--\nWave device in a figure 8 for ~5-10 seconds\n");
+	//calibrateMag(bias);
 
         while(1)
         {
@@ -654,6 +662,39 @@ short getAccelZ(int i2c_file, int address)
         get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_L_A, &_L);
         get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_H_A, &_H);
         return _L + (_H << 8);
+}
+
+void getAccelMag(int i2c_file, int address)
+{
+	unsigned char accel_X_L,accel_X_H,accel_Y_L,accel_Y_H,accel_Z_L,accel_Z_H;
+	short accel_X,accel_Y,accel_Z;
+	float aX, aY, aZ, aMag;
+
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_L_A, &accel_X_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_X_H_A, &accel_X_H);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_L_A, &accel_Y_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Y_H_A, &accel_Y_H);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_L_A, &accel_Z_L);
+	get_i2c_register(i2c_file, address >> 1, LSM9DS0_REGISTER_OUT_Z_H_A, &accel_Z_H);
+	
+	accel_X = (accel_X_L + (accel_X_H << 8));
+	aX = (float)accel_X * LSM9DS0_ACCEL_MG_LSB_2G;
+        aX /= 1000;
+        aX *= SENSORS_GRAVITY_STANDARD;
+
+	accel_Y = accel_Y_L + (accel_Y_H << 8);
+	aY = (float)accel_Y * LSM9DS0_ACCEL_MG_LSB_2G;
+        aY /= 1000;
+        aY *= SENSORS_GRAVITY_STANDARD;
+
+	accel_Z = accel_Z_L + (accel_Z_H << 8);
+        aZ = (float)accel_Z * LSM9DS0_ACCEL_MG_LSB_2G;
+        aZ /= 1000;
+        aZ *= SENSORS_GRAVITY_STANDARD;
+
+	aMag = sqrt(aX*aX + aY*aY + aZ*aZ);
+
+	printf("AccelMag:\t%.2f\n", aMag);
 }
 
 short getGyroX(int i2c_file, int address)
@@ -893,7 +934,7 @@ void calibrateMag(float * bias)
 	short i = 0;
 	short j = 0;
 	short sample_count = 5000;
-	int mag_bias[3] = {0, 0, 0}, mag_scale[3] = {0, 0, 0};
+	int mag_bias[3] = {0, 0, 0};
 	short mag_max[3] = {-32767, -32767, -32767}, mag_min[3] = {32767, 32767, 32767}, mag_temp[3] = {0, 0, 0};
 
 	printf("Mag Calibration: Wave device in a figure eight until done!");
