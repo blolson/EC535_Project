@@ -59,6 +59,7 @@ struct file_operations led_fops = {
 static int led_open(struct inode *inode, struct file *filp)
 {
 	/* Success */
+  printk("file opened \n");
 	return 0;
 }
 
@@ -135,10 +136,11 @@ static ssize_t led_read(struct file *filp, char *buf, size_t count, loff_t *f_po
 
 static ssize_t led_write(struct file *filp, const char *buf, size_t count, loff_t *f_pos)
 {
+  printk("START LED WRITE \n");
   if (copy_from_user(led_buffer, buf, count)){
     return -EFAULT;
   }
-
+  
   int led;
   sscanf(led_buffer, "%d ", &led);
   printk("Turning on led %d \n", led);
@@ -147,8 +149,8 @@ static ssize_t led_write(struct file *filp, const char *buf, size_t count, loff_
   pxa_gpio_set_value(LED_3, led & 8);		
 
   //NOW START N (5?) SECOND TIMER TO TURN OFF LED LIGHT
-  setup_timer(&led_off_timer, leds_off, 0);
-  mod_timer(&led_off_timer, jiffies + (HZ * LED_ON_DURATION));
+  //  setup_timer(&led_off_timer, leds_off, 0);
+  //  mod_timer(&led_off_timer, jiffies + (HZ * LED_ON_DURATION));
   
   *f_pos += count; 
   return count;

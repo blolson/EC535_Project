@@ -9,7 +9,7 @@
 #include "sensors.h"
 #include "ring_buffer.h"
 
-#define PRESSURE_THRESHOLD 200
+#define PRESSURE_THRESHOLD 750
 #define PRESSURE_SAMPLES 20
 
 void sighandler(int);
@@ -24,7 +24,7 @@ bool punchInProgress;
 short maxPunchPressure;
 int pressureSampleCounter;
 int punchCounter;
-
+volatile int ledFile;
 
 int main(int argc, char **argv)
 {
@@ -35,16 +35,32 @@ int main(int argc, char **argv)
   //int ii, count = 0;
 
 
-
-
-
-  //do proc file for leds
+     /* FILE * ledFile; */
+     /*  ledFile = fopen("/dev/led", "r+"); */
+     /*  if (ledFile==NULL) { */
+     /* 	fputs("led module isn't loaded\n",stderr); */
+     /* 	return -1; */
+     /*  } */
   
-  collectData();
-}
+	  
+    /*   //Do analysis here and light up LEDs */
+    /*   printf("About to write! \n"); */
+    /*   if (punchCounter % 2 == 0) { */
+    /* 	fputs("2", ledFile); */
+    /*   } else { */
+    /* 	fputs("4", ledFile); */
+    /*   } */
+    /*   printf("Closing \n"); */
+    /*   fclose(ledFile);       */
+    /* } */
 
-void collectData()
-{
+
+  ledFile = open("/dev/led", O_RDWR);
+  if (ledFile < 0) {
+    fputs("led module isn't loaded\n",stderr);
+    return -1;
+  }
+  
   coords acc_data[RING_BUFFER_SIZE];
   coords mag_data[RING_BUFFER_SIZE];
   coords gyr_data[RING_BUFFER_SIZE];
@@ -89,29 +105,26 @@ void collectData()
       printf("Punch with pressure %d \n", maxPunchPressure);
       maxPunchPressure = 0;
       printf("===================PUNCH %d ===================\n", punchCounter++);
-           for (int i = 0; i < RING_BUFFER_SIZE; i++) print(acc_data[i]);
-	for (int i = 0; i < RING_BUFFER_SIZE; i++) print(eul_data[i]);
-	for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(mag_data[i]);
-	for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(gyr_data[i]);
+      /* for (int i = 0; i < RING_BUFFER_SIZE; i++) print(acc_data[i]); */
+      /* for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(eul_data[i]); */
+      /* for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(mag_data[i]); */
+      /* for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(gyr_data[i]); */
 
-	  FILE * ledFile;
-	  ledFile = fopen("/dev/led", "r+");
-	  if (ledFile==NULL) {
-	    fputs("led module isn't loaded\n",stderr);
-	    return -1;
-	  }
-	  fclose(ledFile);
+	  
+      //Do analysis here and light up LEDs
+      printf("About to write! \n");
+      if (punchCounter % 2 == 0) {
+      	write(ledFile, "2", 2);
+      } else {
+      	write(ledFile, "4", 2);
+      }
+      printf("Closing \n");
 
-
-	  //Do analysis here and light up LEDs
-	if (punchCounter % 2 == 0) {
-	  fputs("2", ledFile);
-	} else fputs("4", ledFile);
-      
     }
 
     
-  }  
+  }
+  close(ledFile);      
 }
   
 
