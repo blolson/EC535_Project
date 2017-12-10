@@ -26,6 +26,7 @@
 #include <linux/fs.h> /* everything... */
 #include <asm/uaccess.h> /* copy_from/to_user */
 #include <linux/proc_fs.h>
+#include <linux/timer.h>
 
 MODULE_LICENSE("Dual BSD/GPL");
 
@@ -33,11 +34,10 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define LED_1 29
 #define LED_2 30
 #define LED_3 31
-#define BUTTON_0 113
-#define BUTTON_1 117
-#define BUTTON_2 101
-#define PWM_1 16
+#define LED_ON_DURATION 5
 
+
+static struct timer_list led_off_timer;
 static int led_major = 61;
 static char *led_buffer;
 static int capacity = 10;
@@ -46,6 +46,7 @@ static int led_release(struct inode *inode, struct file *filp);
 static ssize_t led_read(struct file *filp, char *buf, size_t count, loff_t *f_pos);
 static ssize_t led_write(struct file *filp,const char *buf, size_t timer_length, loff_t *f_pos);
 static int buffer_len;
+static void leds_off(unsigned long);
 
 struct file_operations led_fops = {
 	open: led_open,
@@ -95,9 +96,9 @@ static int my_init_module(void)
 	pxa_gpio_mode(LED_2 | GPIO_OUT);
 	pxa_gpio_mode(LED_3 | GPIO_OUT);	
 
-	pxa_gpio_set_value(LED_1, 1);		
-	pxa_gpio_set_value(LED_2, 1);
-	pxa_gpio_set_value(LED_3, 1);		
+	pxa_gpio_set_value(LED_1, 0);		
+	pxa_gpio_set_value(LED_2, 0);
+	pxa_gpio_set_value(LED_3, 0);		
 
 
 	return 0;
@@ -105,11 +106,11 @@ static int my_init_module(void)
 
 static ssize_t led_read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
 { 
-  printk("Starting read \n");
+  // printk("Starting read \n");
   if ((led_buffer + *f_pos) == 0){
     return 0;
   }
-  printk("1 \n");
+  //printk("1 \n");
 
 
   
@@ -138,11 +139,28 @@ static ssize_t led_write(struct file *filp, const char *buf, size_t count, loff_
     return -EFAULT;
   }
 
+  int led;
+  sscanf(led_buffer, "%d ", &led);
+
+  pxa_gpio_set_value(LED_1, led);		
+  pxa_gpio_set_value(LED_2, led);
+  pxa_gpio_set_value(LED_3, led);		
+
+  //NOW START N (5?) SECOND TIMER TO TURN OFF LED LIGHT
+  setup_timer(&led_off_timer, leds_off, 0);
+  mod_timer(&led_off_timer, jiffies + (HZ * LED_ON_DURATION));
+  
   *f_pos += count; 
   return count;
 
 }
 
+
+static void leds_off(unsigned long data) {
+  pxa_gpio_set_value(LED_1, 0);		
+  pxa_gpio_set_value(LED_2, 0);
+  pxa_gpio_set_value(LED_3, 0);		
+}
 
 module_init(my_init_module);
 //module_exit(my_cleanup_module);
