@@ -21,15 +21,24 @@ void put(ring_buffer *queue, coords c) {
 // Depending on how quickly data collects, this may
 // never be an issue
 bool get_all(ring_buffer *queue, coords *output) {
+  //  printf("Starting get all \n");
   if (!queue->wrapped) return false;
   int i = 0;
   for (int j = queue->in_index; j < RING_BUFFER_SIZE; j++) {
-    output[i++] =  queue->data[j]; //I really hope this works!
+    //    printf("Writing into new buffer %d %d \n", j, i);
+    output[i++] =  queue->data[j];
+    //    printf("Done writing into new buffer %d \n", j);
   }
-  if (queue->in_index == 0) return true; //just for efficiency
-  for (int j = 0; j < RING_BUFFER_SIZE; j++) {
+  
+  if (queue->in_index == 0) {
+    //printf("return 1 \n");
+    return true; //just for efficiency
+  }
+  
+  for (int j = 0; j < queue->in_index; j++) {
+    //    printf("Writing into new buffer %d %d \n", j, i);
     output[i++] = queue->data[j];
   }
-
+  //  printf("return 2 \n");
   return true;
 }

@@ -30,10 +30,10 @@
 
 MODULE_LICENSE("Dual BSD/GPL");
 
-#define LED_0 28
-#define LED_1 29
-#define LED_2 30
-#define LED_3 31
+#define LED_0 31
+#define LED_1 28
+#define LED_2 29
+#define LED_3 30
 #define LED_ON_DURATION 5
 
 
@@ -96,9 +96,9 @@ static int my_init_module(void)
 	pxa_gpio_mode(LED_2 | GPIO_OUT);
 	pxa_gpio_mode(LED_3 | GPIO_OUT);	
 
-	pxa_gpio_set_value(LED_1, 0);		
-	pxa_gpio_set_value(LED_2, 0);
-	pxa_gpio_set_value(LED_3, 0);		
+	pxa_gpio_set_value(LED_1, 1);		
+	pxa_gpio_set_value(LED_2, 1);
+	pxa_gpio_set_value(LED_3, 1);		
 
 
 	return 0;
@@ -141,10 +141,10 @@ static ssize_t led_write(struct file *filp, const char *buf, size_t count, loff_
 
   int led;
   sscanf(led_buffer, "%d ", &led);
-
-  pxa_gpio_set_value(LED_1, led);		
-  pxa_gpio_set_value(LED_2, led);
-  pxa_gpio_set_value(LED_3, led);		
+  printk("Turning on led %d \n", led);
+  pxa_gpio_set_value(LED_1, led & 2);		
+  pxa_gpio_set_value(LED_2, led & 4);
+  pxa_gpio_set_value(LED_3, led & 8);		
 
   //NOW START N (5?) SECOND TIMER TO TURN OFF LED LIGHT
   setup_timer(&led_off_timer, leds_off, 0);
@@ -155,6 +155,18 @@ static ssize_t led_write(struct file *filp, const char *buf, size_t count, loff_
 
 }
 
+static void my_cleanup_module(void)
+{
+	/* Freeing the major number */
+	unregister_chrdev(led_major, "led");
+	/* Freeing buffer memory */
+	if (led_buffer)
+	{
+		kfree(led_buffer);
+	}
+
+
+}
 
 static void leds_off(unsigned long data) {
   pxa_gpio_set_value(LED_1, 0);		
@@ -163,4 +175,4 @@ static void leds_off(unsigned long data) {
 }
 
 module_init(my_init_module);
-//module_exit(my_cleanup_module);
+module_exit(my_cleanup_module);
