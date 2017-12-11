@@ -30,14 +30,14 @@
 
 MODULE_LICENSE("Dual BSD/GPL");
 
-#define LED_0 31
 #define LED_1 28
-#define LED_2 29
-#define LED_3 30
-#define LED_ON_DURATION 5
+#define LED_2 30
+#define LED_3 29
+#define LED_ON_DURATION 2
 
-
-static struct timer_list led_off_timer;
+static short led_binary[3] = {1, 2, 4};
+static short led_GPIO[3] = {28, 30, 29};
+static struct timer_list led_off_timer[3];
 static int led_major = 61;
 static char *led_buffer;
 static int capacity = 10;
@@ -45,7 +45,6 @@ static int led_open(struct inode *inode, struct file *filp);
 static int led_release(struct inode *inode, struct file *filp);
 static ssize_t led_read(struct file *filp, char *buf, size_t count, loff_t *f_pos);
 static ssize_t led_write(struct file *filp,const char *buf, size_t timer_length, loff_t *f_pos);
-static int buffer_len;
 static void leds_off(unsigned long);
 
 struct file_operations led_fops = {
@@ -59,7 +58,7 @@ struct file_operations led_fops = {
 static int led_open(struct inode *inode, struct file *filp)
 {
 	/* Success */
-  printk("file opened \n");
+	printk("file opened \n");
 	return 0;
 }
 
@@ -72,6 +71,8 @@ static int led_release(struct inode *inode, struct file *filp)
 static int my_init_module(void)
 {
 	int result;
+	int iter;
+
 	/* Registering device */
 	result = register_chrdev(led_major, "led", &led_fops);
 	if (result < 0)
@@ -97,10 +98,18 @@ static int my_init_module(void)
 	pxa_gpio_mode(LED_2 | GPIO_OUT);
 	pxa_gpio_mode(LED_3 | GPIO_OUT);	
 
-	pxa_gpio_set_value(LED_1, 1);		
-	pxa_gpio_set_value(LED_2, 1);
-	pxa_gpio_set_value(LED_3, 1);		
+        for(iter = 0; iter < 3; iter++)
+        {
+		printk("Turning on led %d \n", led_GPIO[iter]);
+                pxa_gpio_set_value(led_GPIO[iter], 1);
+                if(timer_pending(&(led_off_timer[iter])))
+                {
+			del_timer(&(led_off_timer[iter]));
+                }
 
+                setup_timer(&(led_off_timer[iter]), leds_off, iter);
+                mod_timer(&(led_off_timer[iter]), jiffies + (HZ * LED_ON_DURATION));
+        }
 
 	return 0;
 }
@@ -136,25 +145,46 @@ static ssize_t led_read(struct file *filp, char *buf, size_t count, loff_t *f_po
 
 static ssize_t led_write(struct file *filp, const char *buf, size_t count, loff_t *f_pos)
 {
-  printk("START LED WRITE \n");
-  if (copy_from_user(led_buffer, buf, count)){
-    return -EFAULT;
-  }
+	int iter;
+	int led;
+	int mode;
+	
+	printk("START LED WRITE %d\n", count);
+	if (copy_from_user(led_buffer, buf, count)){
+		return -EFAULT;
+	}
   
-  int led;
-  sscanf(led_buffer, "%d ", &led);
-  printk("Turning on led %d \n", led);
-  pxa_gpio_set_value(LED_1, led & 2);		
-  pxa_gpio_set_value(LED_2, led & 4);
-  pxa_gpio_set_value(LED_3, led & 8);		
+	sscanf(led_buffer, "%d,%d",&led,&mode);
+	//printk("Here's what I got...mode:%d, led:%d\n", mode, led);
 
-  //NOW START N (5?) SECOND TIMER TO TURN OFF LED LIGHT
-  //  setup_timer(&led_off_timer, leds_off, 0);
-  //  mod_timer(&led_off_timer, jiffies + (HZ * LED_ON_DURATION));
-  
-  *f_pos += count; 
-  return count;
+	//mode == 0 means 'overwrite the current led configuration'
+	if(mode == 0)
+	{
+                pxa_gpio_set_value(LED_1, 0);
+                pxa_gpio_set_value(LED_2, 0);
+                pxa_gpio_set_value(LED_3, 0);
+	}
 
+	//mode == 'anything else' means 'add to the current led configuration'
+
+	for(iter = 0; iter < 3; iter++)
+	{
+		if(led & led_binary[iter])
+		{
+			//printk("Turning on led %d \n", led_GPIO[iter]);
+			pxa_gpio_set_value(led_GPIO[iter], 1);		
+			if(timer_pending(&(led_off_timer[iter])))
+			{
+				del_timer(&(led_off_timer[iter]));
+			}
+	
+			setup_timer(&(led_off_timer[iter]), leds_off, iter);
+			mod_timer(&(led_off_timer[iter]), jiffies + (HZ * LED_ON_DURATION));
+		}
+	}
+
+	*f_pos += count; 
+	return count;
 }
 
 static void my_cleanup_module(void)
@@ -166,14 +196,14 @@ static void my_cleanup_module(void)
 	{
 		kfree(led_buffer);
 	}
-
-
 }
 
 static void leds_off(unsigned long data) {
-  pxa_gpio_set_value(LED_1, 0);		
-  pxa_gpio_set_value(LED_2, 0);
-  pxa_gpio_set_value(LED_3, 0);		
+	
+
+	pxa_gpio_set_value(LED_1, 0);		
+	pxa_gpio_set_value(LED_2, 0);
+	pxa_gpio_set_value(LED_3, 0);		
 }
 
 module_init(my_init_module);

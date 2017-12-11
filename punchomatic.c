@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include "i2c.h"
+#include "i2c_punchomatic.h"
 #include "sensors.h"
 #include "ring_buffer.h"
 
@@ -111,14 +111,17 @@ int main(int argc, char **argv)
       /* for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(gyr_data[i]); */
 
 	  
-      //Do analysis here and light up LEDs
-      printf("About to write! \n");
-      if (punchCounter % 2 == 0) {
-      	write(ledFile, "2", 2);
-      } else {
-      	write(ledFile, "4", 2);
-      }
-      printf("Closing \n");
+	//Do analysis here and light up LEDs
+	//printf("About to write!\n");
+	if (punchCounter % 2 == 0)
+	{
+		write(ledFile, "2,0", 3);
+	}
+	else 
+	{
+      		write(ledFile, "1,0", 3);
+	}
+	//printf("Closing \n");
 
     }
 

@@ -7,7 +7,7 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <sys/time.h>
-#include "i2c.h"
+#include "i2c_punchomatic.h"
 #include "sensors.h"
 #include <math.h>
 #include "MahonyAHRS.h"

@@ -15,11 +15,11 @@ all: ring_test i2c_test punchomatic modules
 i2c_test : CFLAGS = -Wall -lm
 i2c_test : i2c_test.c MahonyAHRS.h MahonyAHRS.c
 punchomatic : CLAFGS = -Wall -lm
-punchomatic : ring_buffer.c ring_buffer.h MahonyAHRS.h MahonyAHRS.c sensors.c sensors.h punchomatic.c i2c.c i2c.h 
+punchomatic : ring_buffer.c ring_buffer.h MahonyAHRS.h MahonyAHRS.c sensors.c sensors.h punchomatic.c i2c_punchomatic.c i2c_punchomatic.h 
 ring_test : CC = gcc
 ring_test : CFLAG = -Wall -std=c99 -o ring_test -lm
 ring_test : ring_buffer.c ring_buffer.h ring_buffer_test.c sensors.c sensors.h
-	gcc ring_buffer_test.c ring_buffer.c ring_buffer.h sensors.c sensors.h i2c.h i2c.c MahonyAHRS.h MahonyAHRS.c -Wall -std=c99 -o ring_test -lm
+	gcc ring_buffer_test.c ring_buffer.c ring_buffer.h sensors.c sensors.h i2c_punchomatic.h i2c_punchomatic.c MahonyAHRS.h MahonyAHRS.c -Wall -std=c99 -o ring_test -lm
 modules : CC = /ad/eng/courses/ec/ec535/arm-linux/bin/arm-linux-gcc
 modules :
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS) modules	
