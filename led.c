@@ -37,15 +37,20 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 static short led_binary[3] = {1, 2, 4};
 static short led_GPIO[3] = {28, 30, 29};
+static short led_off_times[3] = {0, 0, 0};
+static short led_on_times[3] = {0, 0, 0};
+static short led_cont[3] = {0, 0, 0};
 static struct timer_list led_off_timer[3];
+static struct timer_list led_on_timer[3];
 static int led_major = 61;
 static char *led_buffer;
-static int capacity = 10;
+static int capacity = 20;
 static int led_open(struct inode *inode, struct file *filp);
 static int led_release(struct inode *inode, struct file *filp);
 static ssize_t led_read(struct file *filp, char *buf, size_t count, loff_t *f_pos);
 static ssize_t led_write(struct file *filp,const char *buf, size_t timer_length, loff_t *f_pos);
 static void leds_off(unsigned long);
+static void leds_on(unsigned long);
 
 struct file_operations led_fops = {
 	open: led_open,
@@ -148,38 +153,114 @@ static ssize_t led_write(struct file *filp, const char *buf, size_t count, loff_
 	int iter;
 	int led;
 	int mode;
+	int milli;
+	int delay;
+	int cont;
 	
 	//printk("START LED WRITE %d\n", count);
 	if (copy_from_user(led_buffer, buf, count)){
 		return -EFAULT;
 	}
   
-	sscanf(led_buffer, "%d,%d",&led,&mode);
-	//printk("Here's what I got...mode:%d, led:%d\n", mode, led);
+	sscanf(led_buffer, "%d,%d,%d,%d,%d",&led,&mode,&milli,&delay,&cont);
+	printk("Here's what I got...mode:%d, led:%d, milli:%d, cont:%d\n", mode, led, milli, cont);
 
 	//mode == 0 means 'overwrite the current led configuration'
 	if(mode == 0)
 	{
-                pxa_gpio_set_value(LED_1, 0);
-                pxa_gpio_set_value(LED_2, 0);
-                pxa_gpio_set_value(LED_3, 0);
+		for(iter = 0; iter < 3; iter++)
+		{	
+			if(led & led_binary[iter])
+			{
+				printk("Turning off led %d \n", led_GPIO[iter]);
+				pxa_gpio_set_value(led_GPIO[iter], 0);		
+				if(timer_pending(&(led_off_timer[iter])))
+				{
+					del_timer(&(led_off_timer[iter]));
+				}
+				if(timer_pending(&(led_on_timer[iter])))
+                       		{
+                               		del_timer(&(led_on_timer[iter]));
+                        	}
+				led_on_times[iter] = 0;
+				led_off_times[iter] = 0;
+				led_cont[iter] = 0;
+			}
+		}
+	}
+	else if(mode == 1)
+	{
+		for(iter = 0; iter < 3; iter++)
+		{	
+			if(led & led_binary[iter])
+			{
+				printk("Delay on %d \n", led_GPIO[iter]);
+				if(delay == 0)
+					pxa_gpio_set_value(led_GPIO[iter], 1);						
+				if(timer_pending(&(led_on_timer[iter])))
+				{
+					del_timer(&(led_on_timer[iter]));
+				}
+				setup_timer(&(led_on_timer[iter]), leds_on, iter);
+				led_on_times[iter] = milli*2;
+				mod_timer(&(led_on_timer[iter]), jiffies + msecs_to_jiffies(delay));
+
+				if(timer_pending(&(led_off_timer[iter])))
+				{
+					del_timer(&(led_off_timer[iter]));
+				}
+				setup_timer(&(led_off_timer[iter]), leds_off, iter);
+				led_off_times[iter] = milli*2;
+				mod_timer(&(led_off_timer[iter]), jiffies + msecs_to_jiffies(milli + delay));
+			}
+		}
+	}
+	else if(mode == 2)
+	{
+		for(iter = 0; iter < 3; iter++)
+		{	
+			if(led & led_binary[iter])
+			{
+				printk("Turning on led %d \n", led_GPIO[iter]);
+				pxa_gpio_set_value(led_GPIO[iter], 1);		
+				if(timer_pending(&(led_off_timer[iter])))
+				{
+					del_timer(&(led_off_timer[iter]));
+				}
+				if(timer_pending(&(led_on_timer[iter])))
+       		                {
+       	             	           del_timer(&(led_on_timer[iter]));
+       	                	}
+				led_on_times[iter] = 0;
+				led_off_times[iter] = 0;
+				led_cont[iter] = 0;
+			}
+		}
 	}
 
 	//mode == 'anything else' means 'add to the current led configuration'
 
-	for(iter = 0; iter < 3; iter++)
+
+	if(cont == 1)
 	{
-		if(led & led_binary[iter])
-		{
-			//printk("Turning on led %d \n", led_GPIO[iter]);
-			pxa_gpio_set_value(led_GPIO[iter], 1);		
-			if(timer_pending(&(led_off_timer[iter])))
+		for(iter = 0; iter < 3; iter++)
+		{	
+			if(led & led_binary[iter])
 			{
-				del_timer(&(led_off_timer[iter]));
+				printk("Continuing led %d \n", led_GPIO[iter]);
+				led_cont[iter] = 1;
 			}
-	
-			setup_timer(&(led_off_timer[iter]), leds_off, iter);
-			mod_timer(&(led_off_timer[iter]), jiffies + (HZ * LED_ON_DURATION));
+		}
+	}
+	else
+	{
+		for(iter = 0; iter < 3; iter++)
+		{	
+			if(led & led_binary[iter])
+       	        	{
+       	                	printk("Not Continuing led %d \n", led_GPIO[iter]);
+                        	led_cont[iter] = 0;
+               		}
 		}
 	}
 
@@ -192,6 +273,21 @@ static void my_cleanup_module(void)
 	/* Freeing the major number */
 	unregister_chrdev(led_major, "led");
 	/* Freeing buffer memory */
+	short iter;
+
+	for(iter = 0; iter < 3; iter++)
+	{	
+		//printk("Delay off %d \n", led_GPIO[iter]);
+		if(timer_pending(&(led_off_timer[iter])))
+		{		
+			del_timer(&(led_off_timer[iter]));
+		}
+		if(timer_pending(&(led_on_timer[iter])))
+		{		
+			del_timer(&(led_on_timer[iter]));
+		}
+	}
+
 	if (led_buffer)
 	{
 		kfree(led_buffer);
@@ -199,11 +295,31 @@ static void my_cleanup_module(void)
 }
 
 static void leds_off(unsigned long data) {
-	
+	pxa_gpio_set_value(led_GPIO[data], 0);		
+	if(led_cont[data])
+	{
+		printk("Delay off FIRED %d \n", led_GPIO[data]);
+		if(timer_pending(&(led_off_timer[data])))
+		{
+			del_timer(&(led_off_timer[data]));
+		}
+		setup_timer(&(led_off_timer[data]), leds_off, data);
+		mod_timer(&(led_off_timer[data]), jiffies + msecs_to_jiffies(led_off_times[data]));
+	}
+}
 
-	pxa_gpio_set_value(LED_1, 0);		
-	pxa_gpio_set_value(LED_2, 0);
-	pxa_gpio_set_value(LED_3, 0);		
+static void leds_on(unsigned long data) {
+	pxa_gpio_set_value(led_GPIO[data], 1);		
+	if(led_cont[data])
+	{
+		printk("Delay on FIRED %d \n", led_GPIO[data]);
+		if(timer_pending(&(led_on_timer[data])))
+		{
+			del_timer(&(led_on_timer[data]));
+		}
+		setup_timer(&(led_on_timer[data]), leds_on, data);
+		mod_timer(&(led_on_timer[data]), jiffies + msecs_to_jiffies(led_on_times[data]));
+	}	
 }
 
 module_init(my_init_module);

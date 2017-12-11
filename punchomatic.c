@@ -48,7 +48,22 @@ int main(int argc, char **argv)
     fputs("led module isn't loaded\n",stderr);
     return -1;
   }
-  
+
+  //Turn off every LED
+  write(ledFile, "7,0,0,0,0", 10);
+
+  //write(ledFile, "led,mode,milli,delay,cont", characterCount);
+  //led = 1-9
+  //mode == 1 - turn off
+  //mode == 2 - blink
+  //mode == 3 - turn on
+  //milli - duration
+  //delay - how long to stagger start
+  //cont == 0 - once
+  //cont == 1 - loop
+
+  //do cool lighting effect
+  write(ledFile, "1,1,0300,0000,1", 16);
 
   coords acc_data[RING_BUFFER_SIZE];
   coords mag_data[RING_BUFFER_SIZE];
@@ -83,6 +98,12 @@ get_all(&acc_queue, acc_data);    put(&mag_queue, mag);
       //      printf("Loaded data \n");
       maxPunchPressure = pressure;
       punchInProgress = true;
+
+      write(ledFile, "7,0,0,0,0", 10);
+      write(ledFile, "1,1,0100,0000,1", 16);
+      write(ledFile, "2,1,0100,0000,1", 16);
+      write(ledFile, "4,1,0100,0000,1", 16);
+
       pressureSampleCounter++;
     } else if (punchInProgress) {
       maxPunchPressure = (pressure > maxPunchPressure) ? pressure : maxPunchPressure;
@@ -96,39 +117,68 @@ get_all(&acc_queue, acc_data);    put(&mag_queue, mag);
       printf("Punch with pressure %d \n", maxPunchPressure);
       maxPunchPressure = 0;
       printf("===================PUNCH %d ===================\n", punchCounter++);
-      for (int i = 0; i < RING_BUFFER_SIZE; i++) print(acc_data[i]);
-      for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(eul_data[i]);
-      for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(mag_data[i]);
-      for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(gyr_data[i]);
+      //for (int i = 0; i < RING_BUFFER_SIZE; i++) print(acc_data[i]);
+      //for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(eul_data[i]);
+      //for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(mag_data[i]);
+      //for (int i = 0; i < RING_BUFFER_SIZE; i++)  print(gyr_data[i]);
 
+	//write(ledFile, "led,mode,milli,delay,cont", characterCount);
 	  
 	if(!punchesCalculated)
 	{
 		punchesCalculated = true;
 		get_all(&acc_queue, aP_data);
 		get_all(&gyr_queue, gP_data);
+
+		write(ledFile, "7,0,0,0,0", 10);		
+		write(ledFile, "1,1,3000,0,0", 13);
+		write(ledFile, "2,1,0300,2000,1", 16);
 	}
 	else if(!uppercutsCalculated)
 	{
 		uppercutsCalculated = true;
 		get_all(&acc_queue, aU_data);
 		get_all(&gyr_queue, gU_data);
+
+		write(ledFile, "7,0,0,0,0", 10);		
+		write(ledFile, "2,1,3000,0,0", 13);
+		write(ledFile, "4,1,0300,2000,1", 16);
 	}
 	else if(!hooksCalculated)
 	{
 		hooksCalculated = true;
 		get_all(&acc_queue, aH_data);
 		get_all(&gyr_queue, gH_data);
+
+		write(ledFile, "7,0,0,0,0", 10);		
+		write(ledFile, "4,2,0,0,0", 10);
+
+		write(ledFile, "1,1,0300,2000,1", 16);
+		write(ledFile, "2,1,0300,2100,1", 16);
+		write(ledFile, "4,1,0300,2200,1", 16);
 	}
 	else
 	{
 		int hit = CalculateHit(acc_data, gyr_data);
 		if(hit == 1)
-			write(ledFile, "1,0", 3);
+		{
+			write(ledFile, "7,0,0,0,0", 10);		
+			write(ledFile, "1,2,0,0,0", 10);
+		}
 		else if(hit == 2)
-			write(ledFile, "2,0", 3);
+		{
+			write(ledFile, "7,0,0,0,0", 10);		
+			write(ledFile, "2,2,0,0,0", 10);
+		}
 		else
-			write(ledFile, "4,0", 3);
+		{
+			write(ledFile, "7,0,0,0,0", 10);		
+			write(ledFile, "4,2,0,0,0", 10);
+		}
+
+		write(ledFile, "1,1,0300,2000,1", 16);
+		write(ledFile, "2,1,0300,2100,1", 16);
+		write(ledFile, "4,1,0300,2200,1", 16);
 
 		/*
 		//Do analysis here and light up LEDs
@@ -145,7 +195,6 @@ get_all(&acc_queue, acc_data);    put(&mag_queue, mag);
 		*/
 
 	}	
-
     }
 
     
