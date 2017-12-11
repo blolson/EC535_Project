@@ -149,7 +149,7 @@ static ssize_t led_write(struct file *filp, const char *buf, size_t count, loff_
 	int led;
 	int mode;
 	
-	printk("START LED WRITE %d\n", count);
+	//printk("START LED WRITE %d\n", count);
 	if (copy_from_user(led_buffer, buf, count)){
 		return -EFAULT;
 	}
