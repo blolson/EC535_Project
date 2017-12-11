@@ -167,16 +167,22 @@ int CalculateHit(coords a[100], coords g[100])
 	for(i = 0; i < RING_BUFFER_SIZE; i++)
 	{
 		e_aP[0] += abs((int)aP_data[i].X - (int)a[i].X);
+		e_aP[1] += abs((int)aP_data[i].Y - (int)a[i].Y);
+		e_aP[2] += abs((int)aP_data[i].Z - (int)a[i].Z);
 	} 
 
 	for(i = 0; i < RING_BUFFER_SIZE; i++)
 	{
 		e_aU[0] += abs((int)aU_data[i].X - (int)a[i].X);
+		e_aU[1] += abs((int)aU_data[i].Y - (int)a[i].Y);
+		e_aU[2] += abs((int)aU_data[i].Z - (int)a[i].Z);
 	} 
 
 	for(i = 0; i < RING_BUFFER_SIZE; i++)
 	{
 		e_aH[0] += abs((int)aH_data[i].X - (int)a[i].X);
+		e_aH[1] += abs((int)aH_data[i].Y - (int)a[i].Y);
+		e_aH[2] += abs((int)aH_data[i].Z - (int)a[i].Z);
 	} 
 
 	te_P = e_aP[0] + e_aP[1] + e_aP[2];

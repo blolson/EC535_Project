@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include "sensors.h"
 
-#define RING_BUFFER_SIZE 100
+#define RING_BUFFER_SIZE 50
 
 typedef struct {
   coords data[RING_BUFFER_SIZE];
