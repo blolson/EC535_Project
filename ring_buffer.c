@@ -1,14 +1,12 @@
 #include "ring_buffer.h"
 
-//Is any of this necessary?
-void init_ring_buffer(ring_buffer *queue) {
-  queue->in_index = 0;
-  queue->wrapped = false;
-  //Need to initialize array?
-}
+//Ring_buffer provides a FIFO queue of a fixed capacity
+// Once an item is added past capacity it will overwrite
+// the oldest item in the queue. At any time get_all
+// will create an in order snapshot of the contents of
+// the ring buffer.
 
-//coords pop(*ring_buffer queue) {}
-
+//Add an item into the ring_buffer
 void put(ring_buffer *queue, coords c) {
   if (queue->in_index == RING_BUFFER_SIZE) {
     queue->wrapped = true;
@@ -17,6 +15,8 @@ void put(ring_buffer *queue, coords c) {
   queue->data[queue->in_index++] = c;
 }
 
+// get_all copies the contents of the ring_buffer into
+// a new queue, in order. 
 // Right now only returning if buffer has been filled
 // Depending on how quickly data collects, this may
 // never be an issue
