@@ -65,6 +65,7 @@ int main(int argc, char **argv)
   //do cool lighting effect
   write(ledFile, "1,1,0300,0000,1", 16);
 
+  //stores snapshot of pre-punch movements for evaluation
   coords acc_data[RING_BUFFER_SIZE];
   coords mag_data[RING_BUFFER_SIZE];
   coords gyr_data[RING_BUFFER_SIZE];
@@ -75,6 +76,8 @@ int main(int argc, char **argv)
   punchCounter = 0;
 
   while (1) {
+    //Constantly store sensor data in ring buffer
+    //to represent moment before punch
     coords accel = getAccel(i2c_file);
     coords mag = getMag(i2c_file);
     coords gyro = getGyro(i2c_file);
@@ -82,23 +85,25 @@ int main(int argc, char **argv)
     float roll, pitch, yaw;
     getRollPitchYaw(i2c_file, &roll, &pitch, &yaw);
     put(&acc_queue, accel);
-get_all(&acc_queue, acc_data);    put(&mag_queue, mag);
+    get_all(&acc_queue, acc_data);
+    put(&mag_queue, mag);
     put(&gyr_queue, gyro);
     coords angles = {EULER, roll, pitch, yaw};
     put(&eul_queue, angles);
-    //print(accel);
-    //printf("Pressure %d \n", pressure);
-    
+
+    //Checking whether to begin sampling pressure sensor
+    //to determine hardest impact in this punch
     if (!punchInProgress && pressure > PRESSURE_THRESHOLD) {
-      //printf("Detecting punch \n");
+      //Make the snapshot of the motion leading up to the punch
       get_all(&acc_queue, acc_data);
       get_all(&mag_queue, mag_data);
       get_all(&gyr_queue, gyr_data);
       get_all(&eul_queue, eul_data);
-      //      printf("Loaded data \n");
+
       maxPunchPressure = pressure;
       punchInProgress = true;
 
+      //Flash all the lights because we got a punch
       write(ledFile, "7,0,0,0,0", 10);
       write(ledFile, "1,1,0100,0000,1", 16);
       write(ledFile, "2,1,0100,0000,1", 16);
@@ -106,6 +111,7 @@ get_all(&acc_queue, acc_data);    put(&mag_queue, mag);
 
       pressureSampleCounter++;
     } else if (punchInProgress) {
+      //Now evaluating the samples to determine the max pressure for this particular punch
       maxPunchPressure = (pressure > maxPunchPressure) ? pressure : maxPunchPressure;
       //printf("Checking max pressure %d %d \n", pressure, maxPunchPressure);
       pressureSampleCounter++;
@@ -201,7 +207,8 @@ get_all(&acc_queue, acc_data);    put(&mag_queue, mag);
   }
   close(ledFile);      
 }
-  
+
+// classifies the new punch against the saved punches
 int CalculateHit(coords a[100], coords g[100])
 {
 
@@ -212,7 +219,9 @@ int CalculateHit(coords a[100], coords g[100])
 	int te_P, te_U, te_H = 0;
 	int bestError = 0;
 
-	//Blade: Yes, I know it's gross to do this three times copy+pasted, and yet here we are...
+	// Go through the saved punches to determine which has the
+	// least distance between the new punches
+	// Complexity is linear.
 	for(i = 0; i < RING_BUFFER_SIZE; i++)
 	{
 		e_aP[0] += abs((int)aP_data[i].X - (int)a[i].X);
