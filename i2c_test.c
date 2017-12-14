@@ -49,6 +49,7 @@ All rights reserved.
 #include <math.h>
 
 //=============BLADE: THIS IS FOR THE PRESSURE SENSOR ADC==================
+//https://github.com/adafruit/Adafruit_ADS1X15
 /*=========================================================================
     I2C ADDRESS/BITS
     -----------------------------------------------------------------------*/
@@ -135,6 +136,7 @@ All rights reserved.
 
 
 //=============BLADE: THIS IS FOR THE 9-DOF IMU==================
+//https://github.com/adafruit/Adafruit_LSM9DS0_Library/blob/master/Adafruit_LSM9DS0.cpp
 //=========================================================================
 #define SENSORS_GRAVITY_STANDARD (9.80665F) /**< Earth's gravity in m/s^2 */
 
@@ -248,7 +250,7 @@ short getMagZ(int, int);
 void calibrateMag(float *);
 long long current_timestamp();
 
-
+//Write a 1-byte register over i2c
 static int set_i2c_register(int file,
                             unsigned char addr,
                             unsigned char reg,
@@ -284,6 +286,7 @@ static int set_i2c_register(int file,
     return 0;
 }
 
+//Write a 2-byte register over i2c
 static int set_i2c_register_16(int file,
                             unsigned char addr,
                             unsigned char reg,
@@ -320,6 +323,7 @@ static int set_i2c_register_16(int file,
     return 0;
 }
 
+//Read a 1-byte register over i2c
 static int get_i2c_register(int file,
                             unsigned char addr,
                             unsigned char reg,
@@ -357,6 +361,7 @@ static int get_i2c_register(int file,
     return 0;
 }
 
+//Read a 2-byte register over i2c
 static int get_i2c_register_16(int file,
                             unsigned char addr,
                             unsigned char reg,
@@ -407,11 +412,13 @@ int main(int argc, char **argv) {
         exit(1);
     }
    
+    //Test read a register
     if(argc > 3 && !strcmp(argv[1], "r")) {
         int addr = strtol(argv[2], NULL, 0);
         int reg = strtol(argv[3], NULL, 0);
 	int size = strtol(argv[4], NULL, 0);
 
+	//test read 2 bytes
 	if(size == 2)
 	{
 		short value = 0;
@@ -424,6 +431,7 @@ int main(int argc, char **argv) {
 	}
 	else
 	{
+	//test read 1 byte
 		unsigned char value;
 		if(get_i2c_register(i2c_file, addr, reg, &value)) {
             		printf("Unable to get register %x at address %x!\n", reg, addr);
@@ -440,6 +448,7 @@ int main(int argc, char **argv) {
         int value = strtol(argv[4], NULL, 0);
 	int size = strtol(argv[4], NULL, 0);
 
+	//test write 2 bytes
 	if(size == 2)
 	        if(set_i2c_register_16(i2c_file, addr, reg, value)) {
         	    printf("Unable to get register!\n");
@@ -449,6 +458,7 @@ int main(int argc, char **argv) {
        		}
 	else
 	{
+	//test write 1 byte
 	        if(set_i2c_register(i2c_file, addr, reg, value)) {
         	    printf("Unable to get register!\n");
         	}
@@ -458,6 +468,7 @@ int main(int argc, char **argv) {
 	}
     }
     else if(argc > 1 && !strcmp(argv[1], "accel")) {
+	//read accel values over i2c
 	setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
 	while(1)	
 	{
@@ -466,6 +477,7 @@ int main(int argc, char **argv) {
 	}  	
     }
     else if(argc > 1 && !strcmp(argv[1], "accel_mag")) {
+	//read accel values over i2c and perform magnitude math
 	setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
 	while(1)	
 	{
@@ -473,6 +485,7 @@ int main(int argc, char **argv) {
 	}  	
     }
     else if(argc > 1 && !strcmp(argv[1], "gyro")) {
+	//read gyro over i2c
 	setupGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_WRITE);
 	while(1)	
 	{
@@ -480,6 +493,7 @@ int main(int argc, char **argv) {
 	}  	
     }
     else if(argc > 1 && !strcmp(argv[1], "mag")) {
+	//read magnetometer over i2c
 	setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
 	while(1)	
 	{
@@ -487,7 +501,7 @@ int main(int argc, char **argv) {
 	}  	
     }
     else if(argc > 1 && !strcmp(argv[1], "ADC")) {
-        
+        //get values in a continuous stream off the ADC
 	setupADC_Comparator(i2c_file, 0, 1000);
 	//readADC(i2c_file, 0);
 
@@ -522,6 +536,7 @@ int main(int argc, char **argv) {
 	}
     }
     else if(argc > 1 && !strcmp(argv[1], "all")) {
+	//get accel, gyro, and mag from IMU over i2c
 	setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
 	setupGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_WRITE);
 
@@ -533,6 +548,7 @@ int main(int argc, char **argv) {
 	}  	
     }
     else if(argc > 1 && !strcmp(argv[1], "euler")) {
+	//calculat euler angles using MahonyAHRS algorithm
         setupAccelMag(i2c_file, LSM9DS0_ADDRESS_1_ACCELMAG_WRITE);
         setupGyro(i2c_file, LSM9DS0_ADDRESS_1_GYRO_WRITE);
 	
@@ -598,6 +614,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 
+//used when testing Hz of data recording from ADC/IMU
 long long current_timestamp() {
     struct timeval te; 
     gettimeofday(&te, NULL); // get current time
@@ -606,6 +623,7 @@ long long current_timestamp() {
     return milliseconds;
 }
 
+//this never got used in the end
 void sighandler(int signio)
 {
 	printf("sighandler called\n");

@@ -1,4 +1,7 @@
 //https://github.com/dccharacter/AHRS/blob/4dea3a0bf2a3b5ef5fc77e18b429056e5359e979/sensors.c
+//https://github.com/adafruit/Adafruit_AHRS/blob/master/Adafruit_Simple_AHRS.cpp
+//https://learn.adafruit.com/ahrs-for-adafruits-9-dof-10-dof-breakout?view=all#software
+//https://learn.adafruit.com/ahrs-for-adafruits-9-dof-10-dof-breakout/sensor-fusion-algorithms
 //=====================================================================================================
 // MahonyAHRS.h
 //=====================================================================================================

@@ -222,6 +222,9 @@ int CalculateHit(coords a[100], coords g[100])
 	// Go through the saved punches to determine which has the
 	// least distance between the new punches
 	// Complexity is linear.
+
+	// We should have put this all in a single for loop, but we demoed it like this
+	// and now we don't want to edit the code - it worked well enough
 	for(i = 0; i < RING_BUFFER_SIZE; i++)
 	{
 		e_aP[0] += abs((int)aP_data[i].X - (int)a[i].X);

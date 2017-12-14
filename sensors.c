@@ -13,6 +13,7 @@
 #include "MahonyAHRS.h"
 
 //=============BLADE: THIS IS FOR THE PRESSURE SENSOR ADC==================
+//https://github.com/adafruit/Adafruit_ADS1X15
 /*=========================================================================
     I2C ADDRESS/BITS
     -----------------------------------------------------------------------*/
@@ -99,6 +100,7 @@
 
 
 //=============BLADE: THIS IS FOR THE 9-DOF IMU==================
+//https://github.com/adafruit/Adafruit_LSM9DS0_Library
 //=========================================================================
 #define SENSORS_GRAVITY_STANDARD (9.80665F) /**< Earth's gravity in m/s^2 */
 

@@ -18,4 +18,5 @@ insmod led.ko
 ./i2c_test gyro - print gyrometer data
 ./i2c_test mag - print magnotemeter data
 ./i2c_test all - print all`
+./i2c_test ADC - print out values coming from the analog-to-digital converter
 ```
