@@ -1,6 +1,9 @@
 # Punch-O-Matic
 ## BU EC535 Embedded Systems Project
-### Team $1,000,000,000 - Patrick Dillon (pdillon) & Blade Olson (bolson)
+### Patrick Dillon (pdillon) & Blade Olson (blolson)
+
+Article on the project:
+http://circuitcellar.com/cc-blog/gesture-recognition-in-a-boxing-glove/
 
 ### Setup
 1. `make`
